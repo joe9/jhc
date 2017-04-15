@@ -1,13 +1,9 @@
 {-# LANGUAGE CPP,UndecidableInstances,OverlappingInstances #-}
 module Doc.DocLike where
 
-#include "hs_src_config.h"
-
 -- arch-tag: a88f19fb-e18d-475f-b6d1-8da78676261a
 
-#if !HAS_MONOID_DOC
 import Data.Monoid(Monoid(..))
-#endif
 import Control.Monad.Reader()
 import qualified Text.PrettyPrint.HughesPJ as P
 
@@ -150,12 +146,10 @@ instance TextLike P.Doc where
     text = P.text
     char = P.char
 
-#if !HAS_MONOID_DOC
 instance Monoid P.Doc where
     mappend = (P.<>)
     mempty = P.empty
     mconcat = P.hcat
-#endif
 
 instance DocLike P.Doc where
     (<>) = (P.<>)

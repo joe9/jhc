@@ -51,7 +51,7 @@ import Data.IORef
 import Data.Monoid
 import Data.Typeable
 import Data.Unique
-import IO(hFlush, stdout, Handle, hPutStr)
+import System.IO (hFlush, stdout, Handle, hPutStr)
 import Monad
 import qualified Data.Set as Set
 
@@ -191,9 +191,11 @@ dynamicRule v dr = Rule $ addAction v (unRule . dr)
 
 propagateValue :: Fixable a => a -> RvValue a -> IO ()
 propagateValue p v = do
-    if isBottom p then return () else do
-    (modifyIORef (todo $ fixer v) (Set.insert $ MkFixable v))
-    modifyIORef (pending v) (lub p)
+    if isBottom p
+      then return ()
+      else do
+        (modifyIORef (todo $ fixer v) (Set.insert $ MkFixable v))
+        modifyIORef (pending v) (lub p)
 
 -- | read result, calculating fixpoint if needed
 readValue :: (Fixable a,MonadIO m) => Value a -> m a
@@ -224,38 +226,42 @@ calcFixpoint s fixer = findFixpoint (Just (s,stdout)) fixer
 findFixpoint :: MonadIO m => Maybe (String,Handle) ->  Fixer -> m ()
 findFixpoint msh@(~(Just (mstring,_))) Fixer { vars = vars, todo = todo } = liftIO $ do
     to <- readIORef todo
-    if Set.null to then return () else do
-    vars <- readIORef vars
-    let f [] !tl !n | n > 0, tl /= 0 = do
-            vs <- readIORef todo
-            writeIORef todo Set.empty
-            mputStr "(" >> mputStr (show n) >> mputStr ")" >> mFlush
-            f (Set.toList vs) (tl - 1) 0
-        f [] _ n | n > 0 = mputStr "[Aborting]\n" >> mFlush >> return ()
-        f [] _ _ = mputStr "\n" >> mFlush >> return ()
-        f (MkFixable v:vs) tl n = do
-            p <- readIORef (pending v)
-            c <- readIORef (current v)
-            let diff = p `minus` c
-            --if isBottom diff then f vs n else do
-            if p `lte` c then f vs tl n else do
-            as <- readIORef (action v)
-            writeIORef (current v) (p `lub` c)
-            writeIORef (pending v) bottom
-            --putStr "["
-            --putStr (showFixable diff)
-            --putStr "]"
-            mapM_ ($ diff) as
-            f vs tl (n + 1)
-        mputStr s = case msh of
-            Nothing -> return ()
-            Just (_,h) -> hPutStr h s
-        mFlush = case msh of
-            Nothing -> return ()
-            Just (_,h) -> hFlush h
-    mputStr $ "Finding fixpoint for " ++ mstring ++ ": " ++ "[" ++ show (Set.size to) ++ "]"
-    mFlush
-    f (Set.toList to) (-1::Int) (0::Int)
+    if Set.null to
+      then return ()
+      else do
+        vars <- readIORef vars
+        let f [] !tl !n | n > 0, tl /= 0 = do
+                vs <- readIORef todo
+                writeIORef todo Set.empty
+                mputStr "(" >> mputStr (show n) >> mputStr ")" >> mFlush
+                f (Set.toList vs) (tl - 1) 0
+            f [] _ n | n > 0 = mputStr "[Aborting]\n" >> mFlush >> return ()
+            f [] _ _ = mputStr "\n" >> mFlush >> return ()
+            f (MkFixable v:vs) tl n = do
+                p <- readIORef (pending v)
+                c <- readIORef (current v)
+                let diff = p `minus` c
+                --if isBottom diff then f vs n else do
+                if p `lte` c
+                  then f vs tl n
+                  else do
+                    as <- readIORef (action v)
+                    writeIORef (current v) (p `lub` c)
+                    writeIORef (pending v) bottom
+                    --putStr "["
+                    --putStr (showFixable diff)
+                    --putStr "]"
+                    mapM_ ($ diff) as
+                    f vs tl (n + 1)
+            mputStr s = case msh of
+                Nothing -> return ()
+                Just (_,h) -> hPutStr h s
+            mFlush = case msh of
+                Nothing -> return ()
+                Just (_,h) -> hFlush h
+        mputStr $ "Finding fixpoint for " ++ mstring ++ ": " ++ "[" ++ show (Set.size to) ++ "]"
+        mFlush
+        f (Set.toList to) (-1::Int) (0::Int)
 
 -- some useful instances
 

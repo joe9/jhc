@@ -1,8 +1,3 @@
-{-# OPTIONS_GHC -cpp #-}
-{-# LANGUAGE CPP #-}
-
-#include "hs_src_config.h"
-
 -- This module contains routines to provide an interactive shell prompt and is
 -- built on top of the readline library.
 
